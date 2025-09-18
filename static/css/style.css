@@ -329,6 +329,51 @@ body {
     transform: none;
 }
 
+.generate-btn.server-inactive {
+    background: linear-gradient(135deg, var(--error-500), var(--error-600));
+    opacity: 0.7;
+    animation: pulse-inactive 2s infinite;
+}
+
+@keyframes pulse-inactive {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 0.5; }
+}
+
+/* Server Inactive Banner */
+.server-inactive-banner {
+    background: linear-gradient(135deg, var(--error-50), var(--warning-50));
+    border: 2px solid var(--error-200);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--space-6);
+    animation: slideDown 0.3s ease-out;
+}
+
+.banner-content {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    color: var(--error-700);
+    font-weight: 500;
+}
+
+.banner-content svg {
+    flex-shrink: 0;
+    color: var(--error-500);
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 /* Loading State */
 .loading-state {
     background: white;

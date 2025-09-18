@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const navStatus = document.getElementById('navStatus');
     const maxImagesSelect = document.getElementById('max_images');
     const imageCountHint = document.getElementById('imageCountHint');
+    const serverInactiveBanner = document.getElementById('serverInactiveBanner');
 
     // Image count guidance messages
     const hintMessages = {
@@ -56,6 +57,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     consecutiveFailures = 0;
                     updateNavStatus('Active', 'var(--success-500)');
                     isServerHealthy = true;
+                    generateBtn.classList.remove('server-inactive');
+                    hideElement(serverInactiveBanner);
+                    validateForm(); // Re-enable button when server becomes active
                 } else if (isServerHealthy) {
                     updateNavStatus('Active', 'var(--success-500)');
                 }
@@ -71,6 +75,9 @@ document.addEventListener('DOMContentLoaded', function() {
             } else if (consecutiveFailures >= 2) {
                 updateNavStatus('Inactive', 'var(--error-500)');
                 isServerHealthy = false;
+                generateBtn.classList.add('server-inactive');
+                showElement(serverInactiveBanner);
+                validateForm(); // Disable button when server becomes inactive
                 
                 // Show reconnection message after 3 consecutive failures
                 if (consecutiveFailures === 3) {
@@ -252,6 +259,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
+        
+        // Check if server is healthy before proceeding
+        if (!isServerHealthy) {
+            showError('🔌 Server is currently inactive. Please wait for it to become active before generating images.');
+            return;
+        }
         
         // Hide previous results and errors
         hideElement(error);
@@ -532,11 +545,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Form validation
     const validateForm = () => {
         const prompt = promptTextarea.value.trim();
-        const isValid = prompt.length >= 3;
+        const isPromptValid = prompt.length >= 3;
+        const isValid = isPromptValid && isServerHealthy;
         
         generateBtn.disabled = !isValid;
         
-        if (!isValid && prompt.length > 0) {
+        if (!isServerHealthy) {
+            generateBtn.title = 'Server is inactive - please wait for connection';
+        } else if (!isPromptValid && prompt.length > 0) {
             generateBtn.title = 'Please enter at least 3 characters';
         } else {
             generateBtn.title = '';
