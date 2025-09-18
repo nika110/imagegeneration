@@ -3,104 +3,133 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Image Generator</title>
+    <title>Image Generator</title>
     <link rel="stylesheet" href="/static/css/style.css">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1><i class="fas fa-magic"></i> AI Image Generator</h1>
-            <p>Generate stunning images with the power of AI</p>
-        </header>
+    <div class="app">
+        <nav class="navbar">
+            <div class="nav-content">
+                <div class="logo">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <rect x="3" y="3" width="7" height="7" rx="1" fill="currentColor"/>
+                        <rect x="14" y="3" width="7" height="7" rx="1" fill="currentColor"/>
+                        <rect x="3" y="14" width="7" height="7" rx="1" fill="currentColor"/>
+                        <rect x="14" y="14" width="7" height="7" rx="1" fill="currentColor"/>
+                    </svg>
+                    <span>ImageGen</span>
+                </div>
+                <div class="nav-status" id="navStatus">
+                    <span class="status-dot"></span>
+                    Ready
+                </div>
+            </div>
+        </nav>
 
-        <main>
-            <div class="form-container">
-                <form id="imageForm" method="POST" action="/generate">
-                    <div class="input-group">
-                        <label for="prompt">Enter your prompt:</label>
-                        <textarea 
-                            id="prompt" 
-                            name="prompt" 
-                            rows="3" 
-                            placeholder="Describe the image you want to generate... (e.g., 'A futuristic cityscape at sunset with flying cars')"
-                            required
-                        ></textarea>
+        <main class="main-content">
+            <div class="container">
+                <div class="generation-panel">
+                    <div class="panel-header">
+                        <h1>Generate Images</h1>
+                        <p>Create high-quality images using AI technology</p>
                     </div>
 
-                    <div class="input-group">
-                        <label for="reference_image_url">
-                            <i class="fas fa-image"></i>
-                            Reference Image URL (Optional):
-                        </label>
-                        <input 
-                            type="url" 
-                            id="reference_image_url" 
-                            name="reference_image_url" 
-                            placeholder="https://example.com/image.jpg (for image-to-image generation)"
-                        />
-                        <small class="input-help">
-                            Provide a reference image URL to influence the generation style or content
-                        </small>
-                        <div id="imagePreview" class="image-preview hidden">
-                            <img id="previewImg" src="" alt="Reference image preview">
-                            <button type="button" id="removeImage" class="remove-image-btn">
-                                <i class="fas fa-times"></i>
-                            </button>
+                    <form id="imageForm" class="generation-form">
+                        <div class="form-section">
+                            <label for="prompt" class="form-label">Prompt</label>
+                            <textarea 
+                                id="prompt" 
+                                name="prompt" 
+                                class="form-textarea"
+                                rows="4"
+                                placeholder="Describe what you want to create..."
+                                required
+                            ></textarea>
                         </div>
+
+                        <div class="form-section">
+                            <label for="reference_image_url" class="form-label">Reference Image <span class="optional">(Optional)</span></label>
+                            <input 
+                                type="url" 
+                                id="reference_image_url" 
+                                name="reference_image_url" 
+                                class="form-input"
+                                placeholder="https://example.com/image.jpg"
+                            />
+                            <div id="imagePreview" class="image-preview hidden">
+                                <img id="previewImg" src="" alt="Reference preview">
+                                <button type="button" id="removeImage" class="remove-btn">×</button>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-section">
+                                <label for="max_images" class="form-label">Images</label>
+                                <select id="max_images" name="max_images" class="form-select">
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4" selected>4</option>
+                                </select>
+                                <div id="imageCountHint" class="form-hint">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                                    </svg>
+                                    <span>💡 For multiple images, be specific in your prompt to generate varied results</span>
+                                </div>
+                            </div>
+
+                            <div class="form-section">
+                                <label for="size" class="form-label">Resolution</label>
+                                <select id="size" name="size" class="form-select">
+                                    <option value="1K">1K</option>
+                                    <option value="2K" selected>2K</option>
+                                    <option value="4K">4K</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <button type="submit" id="generateBtn" class="generate-btn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="currentColor"/>
+                            </svg>
+                            Generate
+                        </button>
+                    </form>
+                </div>
+
+                <div id="loading" class="loading-state hidden">
+                    <div class="loading-content">
+                        <div class="loading-spinner"></div>
+                        <h3>Generating Images</h3>
+                        <p>This usually takes 10-30 seconds</p>
                     </div>
+                </div>
 
-                    <div class="settings-row">
-                        <div class="input-group">
-                            <label for="max_images">Number of Images:</label>
-                            <select id="max_images" name="max_images">
-                                <option value="1">1 Image</option>
-                                <option value="2">2 Images</option>
-                                <option value="3">3 Images</option>
-                                <option value="4" selected>4 Images</option>
-                            </select>
-                        </div>
-
-                        <div class="input-group">
-                            <label for="size">Image Size:</label>
-                            <select id="size" name="size">
-                                <option value="1K">1K (1024x1024)</option>
-                                <option value="2K" selected>2K (2048x2048)</option>
-                                <option value="4K">4K (4096x4096)</option>
-                            </select>
-                        </div>
+                <div id="error" class="error-state hidden">
+                    <div class="error-content">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                            <line x1="12" y1="8" x2="12" y2="12" stroke="currentColor" stroke-width="2"/>
+                            <line x1="12" y1="16" x2="12.01" y2="16" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                        <h3>Generation Failed</h3>
+                        <p id="errorMessage">Something went wrong</p>
                     </div>
+                </div>
 
-                    <button type="submit" id="generateBtn">
-                        <i class="fas fa-wand-magic-sparkles"></i>
-                        Generate Images
-                    </button>
-                </form>
-            </div>
-
-            <div id="loading" class="loading hidden">
-                <div class="spinner"></div>
-                <p>Generating your amazing images...</p>
-                <small>This may take 10-30 seconds</small>
-            </div>
-
-            <div id="error" class="error hidden">
-                <i class="fas fa-exclamation-triangle"></i>
-                <span id="errorMessage"></span>
-            </div>
-
-            <div id="results" class="results hidden">
-                <h2><i class="fas fa-images"></i> Generated Images</h2>
-                <div id="imageGrid" class="image-grid"></div>
-                <div class="usage-info">
-                    <p id="usageText"></p>
+                <div id="results" class="results-section hidden">
+                    <div class="results-header">
+                        <h2>Generated Images</h2>
+                        <div id="usageText" class="usage-stats"></div>
+                    </div>
+                    <div id="imageGrid" class="image-grid"></div>
                 </div>
             </div>
         </main>
-
-        <footer>
-            <p>Powered by Seedream AI • Built with FastAPI</p>
-        </footer>
     </div>
 
     <script src="/static/js/app.js"></script>
