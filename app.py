@@ -49,10 +49,46 @@ async def generate_images(prompt: str, max_images: int = 4, size: str = "2K", re
     if not session_id:
         session_id = str(uuid.uuid4())[:8]
     
-    # Validate size parameter
-    valid_sizes = ["1K", "2K", "4K"]
-    if size not in valid_sizes:
-        raise HTTPException(status_code=400, detail=f"Invalid size '{size}'. Valid sizes are: {', '.join(valid_sizes)}")
+    # Validate size parameter - support both Method 1 (1K, 2K, 4K) and Method 2 (WIDTHxHEIGHT)
+    def validate_size(size_param):
+        # Method 1: Resolution format (1K, 2K, 4K)
+        if size_param in ["1K", "2K", "4K"]:
+            return True
+        
+        # Method 2: Width x Height format (e.g., "2048x2048")
+        if "x" in size_param:
+            try:
+                width, height = map(int, size_param.split("x"))
+                
+                # Validate total pixels range [1024x1024, 4096x4096]
+                total_pixels = width * height
+                min_pixels = 1024 * 1024  # 1,048,576
+                max_pixels = 4096 * 4096  # 16,777,216
+                
+                if not (min_pixels <= total_pixels <= max_pixels):
+                    return False
+                
+                # Validate aspect ratio [1/16, 16]
+                aspect_ratio = width / height
+                if not (1/16 <= aspect_ratio <= 16):
+                    return False
+                
+                # Validate individual dimensions
+                if not (1024 <= width <= 4096 and 1024 <= height <= 4096):
+                    return False
+                
+                return True
+            except (ValueError, ZeroDivisionError):
+                return False
+        
+        return False
+    
+    if not validate_size(size):
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Invalid size '{size}'. Use Method 1 (1K, 2K, 4K) or Method 2 (WIDTHxHEIGHT, e.g., '2048x1536'). "
+                   f"For Method 2: total pixels must be between 1024x1024 and 4096x4096, aspect ratio between 1/16 and 16."
+        )
     
     headers = {
         "Content-Type": "application/json",

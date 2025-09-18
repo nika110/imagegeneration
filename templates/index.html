@@ -93,12 +93,55 @@
                             </div>
 
                             <div class="form-section">
-                                <label for="size" class="form-label">Resolution</label>
-                                <select id="size" name="size" class="form-select">
-                                    <option value="1K">1K</option>
-                                    <option value="2K" selected>2K</option>
-                                    <option value="4K">4K</option>
+                                <label for="dimensionMethod" class="form-label">Dimensions</label>
+                                <select id="dimensionMethod" class="form-select" style="margin-bottom: 0.75rem;">
+                                    <option value="resolution">Quick Resolution (1K, 2K, 4K)</option>
+                                    <option value="custom">Custom Dimensions</option>
                                 </select>
+                                
+                                <!-- Method 1: Resolution -->
+                                <div id="resolutionControls" class="dimension-controls">
+                                    <select id="size" name="size" class="form-select">
+                                        <option value="1K">1K (1024px)</option>
+                                        <option value="2K" selected>2K (2048px)</option>
+                                        <option value="4K">4K (4096px)</option>
+                                    </select>
+                                </div>
+                                
+                                <!-- Method 2: Custom Dimensions -->
+                                <div id="customControls" class="dimension-controls hidden">
+                                    <select id="presetDimensions" class="form-select" style="margin-bottom: 0.5rem;">
+                                        <option value="">Choose a preset...</option>
+                                        <optgroup label="Square">
+                                            <option value="1024x1024">Square Small (1024×1024)</option>
+                                            <option value="2048x2048">Square Medium (2048×2048)</option>
+                                            <option value="3072x3072">Square Large (3072×3072)</option>
+                                        </optgroup>
+                                        <optgroup label="Landscape">
+                                            <option value="2048x1536">Landscape 4:3 (2048×1536)</option>
+                                            <option value="2048x1152">Landscape 16:9 (2048×1152)</option>
+                                            <option value="3072x1728">Landscape 16:9 HD (3072×1728)</option>
+                                            <option value="2048x1365">Landscape 3:2 (2048×1365)</option>
+                                        </optgroup>
+                                        <optgroup label="Portrait">
+                                            <option value="1536x2048">Portrait 3:4 (1536×2048)</option>
+                                            <option value="1152x2048">Portrait 9:16 (1152×2048)</option>
+                                            <option value="1365x2048">Portrait 2:3 (1365×2048)</option>
+                                            <option value="1728x3072">Portrait 9:16 HD (1728×3072)</option>
+                                        </optgroup>
+                                    </select>
+                                    
+                                    <div class="custom-dimension-inputs">
+                                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                            <input type="number" id="customWidth" placeholder="Width" min="1024" max="4096" class="form-input" style="flex: 1;">
+                                            <span style="color: var(--primary-500); font-weight: 500;">×</span>
+                                            <input type="number" id="customHeight" placeholder="Height" min="1024" max="4096" class="form-input" style="flex: 1;">
+                                        </div>
+                                        <div class="dimension-info" style="font-size: 0.75rem; color: var(--primary-500); margin-top: 0.5rem;">
+                                            Range: 1024-4096px each • Aspect ratio: 1/16 - 16
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 

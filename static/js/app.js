@@ -16,6 +16,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const maxImagesSelect = document.getElementById('max_images');
     const imageCountHint = document.getElementById('imageCountHint');
     const serverInactiveBanner = document.getElementById('serverInactiveBanner');
+    
+    // Dimension control elements
+    const dimensionMethod = document.getElementById('dimensionMethod');
+    const resolutionControls = document.getElementById('resolutionControls');
+    const customControls = document.getElementById('customControls');
+    const sizeSelect = document.getElementById('size');
+    const presetDimensions = document.getElementById('presetDimensions');
+    const customWidth = document.getElementById('customWidth');
+    const customHeight = document.getElementById('customHeight');
 
     // Image count guidance messages
     const hintMessages = {
@@ -285,8 +294,21 @@ document.addEventListener('DOMContentLoaded', function() {
             Generating...
         `;
 
+        // Ensure form size is up to date before submission
+        updateFormSize();
+        
         // Get form data
         const formData = new FormData(form);
+        
+        // Override size parameter based on dimension method
+        const method = dimensionMethod.value;
+        if (method === 'custom') {
+            const width = parseInt(customWidth.value);
+            const height = parseInt(customHeight.value);
+            if (width && height) {
+                formData.set('size', `${width}x${height}`);
+            }
+        }
         
         try {
             const response = await fetch('/generate', {
@@ -482,6 +504,53 @@ document.addEventListener('DOMContentLoaded', function() {
     maxImagesSelect.addEventListener('change', function() {
         updateImageCountHint(parseInt(this.value));
     });
+
+    // Handle dimension method switching
+    dimensionMethod.addEventListener('change', function() {
+        const method = this.value;
+        if (method === 'resolution') {
+            showElement(resolutionControls);
+            hideElement(customControls);
+        } else if (method === 'custom') {
+            hideElement(resolutionControls);
+            showElement(customControls);
+        }
+        updateFormSize();
+    });
+
+    // Handle preset dimension selection
+    presetDimensions.addEventListener('change', function() {
+        const preset = this.value;
+        if (preset && preset.includes('x')) {
+            const [width, height] = preset.split('x').map(Number);
+            customWidth.value = width;
+            customHeight.value = height;
+            updateFormSize();
+        }
+    });
+
+    // Handle custom dimension input changes
+    customWidth.addEventListener('input', updateFormSize);
+    customHeight.addEventListener('input', updateFormSize);
+
+    function updateFormSize() {
+        // Update the hidden size field based on current method
+        const method = dimensionMethod.value;
+        
+        if (method === 'resolution') {
+            // Use the selected resolution (1K, 2K, 4K)
+            // The form will submit the size select value directly
+        } else if (method === 'custom') {
+            // Use custom dimensions in WIDTHxHEIGHT format
+            const width = parseInt(customWidth.value);
+            const height = parseInt(customHeight.value);
+            
+            if (width && height) {
+                // Create a hidden input or update the size value
+                sizeSelect.value = `${width}x${height}`;
+            }
+        }
+    }
 
     function updateImageCountHint(count) {
         const hintSpan = imageCountHint.querySelector('span');
