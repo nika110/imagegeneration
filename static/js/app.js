@@ -190,11 +190,136 @@ document.addEventListener('DOMContentLoaded', function() {
     function restoreLastSession() {
         const savedSessions = loadSavedSessions();
         if (savedSessions.length > 0) {
-            const lastSession = savedSessions[0];
-            displaySavedResults(lastSession);
+            // Create session browser if multiple sessions
+            createSessionBrowser(savedSessions);
+            
+            // Display the most recent session by default
+            displaySavedResults(savedSessions[0]);
+            
+            // Show session info
+            updateSessionInfo(savedSessions[0]);
             
             // Show restore notification
             showRestoreNotification(savedSessions.length);
+        }
+    }
+
+    function createSessionBrowser(sessions) {
+        // Remove existing browser if any
+        const existingBrowser = document.querySelector('.session-browser');
+        if (existingBrowser) {
+            existingBrowser.remove();
+        }
+
+        if (sessions.length <= 1) return; // No need for browser with only one session
+
+        const sessionBrowser = document.createElement('div');
+        sessionBrowser.className = 'session-browser';
+        sessionBrowser.innerHTML = `
+            <div class="session-browser-header">
+                <h3>Saved Sessions (${sessions.length})</h3>
+                <button class="clear-all-btn">Clear All</button>
+            </div>
+            <div class="session-list">
+                ${sessions.map((session, index) => `
+                    <div class="session-item ${index === 0 ? 'active' : ''}" data-session-index="${index}">
+                        <div class="session-preview">
+                            <img src="${session.images[0]}" alt="Session preview" class="session-thumb">
+                        </div>
+                        <div class="session-details">
+                            <div class="session-prompt">"${session.prompt.length > 50 ? session.prompt.substring(0, 50) + '...' : session.prompt}"</div>
+                            <div class="session-date">${new Date(session.timestamp).toLocaleString()}</div>
+                            <div class="session-count">${session.images.length} images</div>
+                        </div>
+                        <button class="delete-session-btn" data-session-index="${index}">×</button>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+
+        // Insert before image grid
+        const imageGrid = document.querySelector('.image-grid');
+        if (imageGrid && imageGrid.parentNode) {
+            imageGrid.parentNode.insertBefore(sessionBrowser, imageGrid);
+        }
+
+        // Add event listeners
+        sessionBrowser.addEventListener('click', (e) => {
+            if (e.target.classList.contains('session-item') || e.target.closest('.session-item')) {
+                const sessionItem = e.target.closest('.session-item');
+                if (sessionItem && !e.target.classList.contains('delete-session-btn')) {
+                    const sessionIndex = parseInt(sessionItem.dataset.sessionIndex);
+                    
+                    // Update active session
+                    document.querySelectorAll('.session-item').forEach(item => item.classList.remove('active'));
+                    sessionItem.classList.add('active');
+                    
+                    // Display selected session
+                    displaySavedResults(sessions[sessionIndex]);
+                    updateSessionInfo(sessions[sessionIndex]);
+                }
+            }
+            
+            if (e.target.classList.contains('delete-session-btn')) {
+                e.stopPropagation();
+                const sessionIndex = parseInt(e.target.dataset.sessionIndex);
+                deleteSession(sessionIndex);
+            }
+            
+            if (e.target.classList.contains('clear-all-btn')) {
+                clearAllSessions();
+            }
+        });
+    }
+
+    function updateSessionInfo(session) {
+        // Remove existing session info
+        const existingInfo = document.querySelector('.session-info');
+        if (existingInfo) {
+            existingInfo.remove();
+        }
+
+        const sessionInfo = document.createElement('div');
+        sessionInfo.className = 'session-info';
+        sessionInfo.innerHTML = `
+            <div class="session-meta">
+                <span class="session-date">${new Date(session.timestamp).toLocaleString()}</span>
+                <span class="session-prompt">"${session.prompt}"</span>
+                <span class="session-count">${session.images.length} images generated</span>
+            </div>
+        `;
+        
+        // Insert session info before the image grid
+        const imageGrid = document.querySelector('.image-grid');
+        if (imageGrid && imageGrid.parentNode) {
+            imageGrid.parentNode.insertBefore(sessionInfo, imageGrid);
+        }
+    }
+
+    function deleteSession(sessionIndex) {
+        const savedSessions = loadSavedSessions();
+        savedSessions.splice(sessionIndex, 1);
+        localStorage.setItem('imageSessions', JSON.stringify(savedSessions));
+        
+        // Refresh the browser
+        if (savedSessions.length > 0) {
+            createSessionBrowser(savedSessions);
+            displaySavedResults(savedSessions[0]);
+            updateSessionInfo(savedSessions[0]);
+        } else {
+            // Clear everything if no sessions left
+            document.querySelector('.session-browser')?.remove();
+            document.querySelector('.session-info')?.remove();
+            document.querySelector('.image-grid').innerHTML = '';
+        }
+    }
+
+    function clearAllSessions() {
+        if (confirm('Are you sure you want to clear all saved sessions?')) {
+            localStorage.removeItem('imageSessions');
+            document.querySelector('.session-browser')?.remove();
+            document.querySelector('.session-info')?.remove();
+            document.querySelector('.image-grid').innerHTML = '';
         }
     }
 
