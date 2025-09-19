@@ -25,6 +25,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const presetDimensions = document.getElementById('presetDimensions');
     const customWidth = document.getElementById('customWidth');
     const customHeight = document.getElementById('customHeight');
+    
+    // Image upload elements
+    const tabButtons = document.querySelectorAll('.tab-button');
+    const uploadTab = document.getElementById('uploadTab');
+    const urlTab = document.getElementById('urlTab');
+    const fileUploadArea = document.getElementById('fileUploadArea');
+    const imageUpload = document.getElementById('imageUpload');
+    const uploadedImagesPreview = document.getElementById('uploadedImagesPreview');
+    
+    // Storage for uploaded files
+    let uploadedFiles = [];
 
     // Image count guidance messages
     const hintMessages = {
@@ -609,6 +620,200 @@ document.addEventListener('DOMContentLoaded', function() {
     setInterval(cyclePlaceholder, 4000);
     cyclePlaceholder(); // Set initial placeholder
 
+    // Image upload functionality
+    function initializeImageUpload() {
+        // Tab switching
+        tabButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const targetTab = this.dataset.tab;
+                switchReferenceTab(targetTab);
+            });
+        });
+
+        // File upload events
+        imageUpload.addEventListener('change', handleFileSelect);
+        
+        // Drag and drop events
+        fileUploadArea.addEventListener('dragover', handleDragOver);
+        fileUploadArea.addEventListener('dragleave', handleDragLeave);
+        fileUploadArea.addEventListener('drop', handleDrop);
+        fileUploadArea.addEventListener('click', () => imageUpload.click());
+    }
+
+    function switchReferenceTab(tabName) {
+        // Update tab buttons
+        tabButtons.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.tab === tabName);
+        });
+
+        // Update tab content
+        uploadTab.classList.toggle('active', tabName === 'upload');
+        urlTab.classList.toggle('active', tabName === 'url');
+
+        // Clear the other tab when switching
+        if (tabName === 'upload') {
+            referenceImageUrl.value = '';
+            hideImagePreview();
+        } else if (tabName === 'url') {
+            clearUploadedImages();
+        }
+    }
+
+    function handleFileSelect(event) {
+        const files = Array.from(event.target.files);
+        processFiles(files);
+    }
+
+    function handleDragOver(event) {
+        event.preventDefault();
+        fileUploadArea.classList.add('drag-over');
+    }
+
+    function handleDragLeave(event) {
+        event.preventDefault();
+        fileUploadArea.classList.remove('drag-over');
+    }
+
+    function handleDrop(event) {
+        event.preventDefault();
+        fileUploadArea.classList.remove('drag-over');
+        
+        const files = Array.from(event.dataTransfer.files);
+        processFiles(files);
+    }
+
+    function processFiles(files) {
+        const imageFiles = files.filter(file => file.type.startsWith('image/'));
+        const maxFiles = 5;
+        const maxSize = 10 * 1024 * 1024; // 10MB
+
+        if (imageFiles.length === 0) {
+            showError('Please select image files only.');
+            return;
+        }
+
+        if (uploadedFiles.length + imageFiles.length > maxFiles) {
+            showError(`Maximum ${maxFiles} images allowed. You currently have ${uploadedFiles.length} images.`);
+            return;
+        }
+
+        const invalidFiles = imageFiles.filter(file => file.size > maxSize);
+        if (invalidFiles.length > 0) {
+            showError(`Some files are too large. Maximum size is 10MB per image.`);
+            return;
+        }
+
+        imageFiles.forEach(file => {
+            if (uploadedFiles.length < maxFiles) {
+                uploadedFiles.push(file);
+            }
+        });
+
+        updateFileInput();
+        updateUploadPreview();
+    }
+
+    function updateFileInput() {
+        // Create new DataTransfer to update the file input
+        const dt = new DataTransfer();
+        uploadedFiles.forEach(file => {
+            dt.items.add(file);
+        });
+        imageUpload.files = dt.files;
+    }
+
+    function updateUploadPreview() {
+        uploadedImagesPreview.innerHTML = '';
+
+        uploadedFiles.forEach((file, index) => {
+            const previewItem = document.createElement('div');
+            previewItem.className = 'upload-preview-item';
+            
+            const img = document.createElement('img');
+            img.className = 'upload-preview-image';
+            
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'remove-upload-btn';
+            removeBtn.innerHTML = '×';
+            removeBtn.addEventListener('click', () => removeUploadedImage(index));
+            
+            const fileName = document.createElement('div');
+            fileName.className = 'upload-file-name';
+            fileName.textContent = file.name;
+
+            previewItem.appendChild(img);
+            previewItem.appendChild(removeBtn);
+            previewItem.appendChild(fileName);
+            uploadedImagesPreview.appendChild(previewItem);
+
+            // Load image preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // Add "Add More Images" button if we have images but not at the limit
+        if (uploadedFiles.length > 0 && uploadedFiles.length < 5) {
+            const addMoreBtn = document.createElement('div');
+            addMoreBtn.className = 'add-more-images-btn';
+            addMoreBtn.innerHTML = `
+                <div class="add-more-content">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" y1="8" x2="12" y2="16"/>
+                        <line x1="8" y1="12" x2="16" y2="12"/>
+                    </svg>
+                    <span>Add More</span>
+                </div>
+            `;
+            addMoreBtn.addEventListener('click', () => imageUpload.click());
+            uploadedImagesPreview.appendChild(addMoreBtn);
+        }
+
+        // Update upload area visibility
+        if (uploadedFiles.length === 0) {
+            fileUploadArea.style.display = 'block';
+            uploadedImagesPreview.style.display = 'none';
+        } else {
+            fileUploadArea.style.display = 'none';
+            uploadedImagesPreview.style.display = 'block';
+        }
+    }
+
+    function removeUploadedImage(index) {
+        uploadedFiles.splice(index, 1);
+        updateFileInput();
+        updateUploadPreview();
+        
+        // If no images left, clear localStorage
+        if (uploadedFiles.length === 0) {
+            clearStoredSessions();
+        }
+    }
+
+    function clearUploadedImages() {
+        uploadedFiles = [];
+        updateFileInput();
+        updateUploadPreview();
+        clearStoredSessions(); // Clear localStorage when clearing images
+    }
+    
+    function clearStoredSessions() {
+        try {
+            localStorage.removeItem(STORAGE_KEY);
+            localStorage.removeItem('imageSessions'); // Clear old storage key too
+            console.log('Cleared stored image sessions');
+        } catch (e) {
+            console.warn('Failed to clear localStorage:', e);
+        }
+    }
+
+    // Initialize image upload on page load
+    initializeImageUpload();
+
     // Handle reference image URL input
     referenceImageUrl.addEventListener('input', function() {
         const url = this.value.trim();
@@ -623,6 +828,7 @@ document.addEventListener('DOMContentLoaded', function() {
     removeImageBtn.addEventListener('click', function() {
         referenceImageUrl.value = '';
         hideImagePreview();
+        clearStoredSessions(); // Clear localStorage when removing URL image
     });
 
     // Handle image count selection changes

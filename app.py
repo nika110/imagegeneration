@@ -1,14 +1,17 @@
-from fastapi import FastAPI, Request, Form, HTTPException
+from fastapi import FastAPI, Request, Form, HTTPException, File, UploadFile
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 import requests
 import asyncio
 import aiohttp
-from typing import Optional
+from typing import Optional, List
 import json
 import os
 import uuid
+import base64
+from PIL import Image
+import io
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -31,7 +34,50 @@ if not API_KEY:
 if not API_URL:
     raise ValueError("API_URL environment variable is required")
 
-async def generate_images(prompt: str, max_images: int = 4, size: str = "2K", reference_image_url: str = None, session_id: str = None) -> dict:
+def validate_image_file(file: UploadFile) -> bool:
+    """Validate uploaded image file"""
+    allowed_types = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"]
+    max_size = 10 * 1024 * 1024  # 10MB
+    
+    if file.content_type not in allowed_types:
+        return False
+    
+    if file.size and file.size > max_size:
+        return False
+    
+    return True
+
+async def convert_image_to_base64(file: UploadFile) -> str:
+    """Convert uploaded image to base64 format required by API"""
+    try:
+        # Read the file content
+        content = await file.read()
+        
+        # Open with PIL to validate and potentially resize if needed
+        image = Image.open(io.BytesIO(content))
+        
+        # Convert to RGB if necessary (for JPEG compatibility)
+        if image.mode in ("RGBA", "P"):
+            background = Image.new("RGB", image.size, (255, 255, 255))
+            background.paste(image, mask=image.split()[-1] if image.mode == "RGBA" else None)
+            image = background
+        
+        # Save as JPEG to a bytes buffer
+        buffer = io.BytesIO()
+        image.save(buffer, format="JPEG", quality=85)
+        buffer.seek(0)
+        
+        # Encode to base64
+        base64_string = base64.b64encode(buffer.getvalue()).decode('utf-8')
+        return f"data:image/jpeg;base64,{base64_string}"
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid image file: {str(e)}")
+    finally:
+        # Reset file position for potential re-reading
+        await file.seek(0)
+
+async def generate_images(prompt: str, max_images: int = 4, size: str = "2K", reference_image_url: str = None, reference_images: List[str] = None, session_id: str = None) -> dict:
     """
     Generate images using the AI API (async for concurrent support)
     
@@ -40,6 +86,7 @@ async def generate_images(prompt: str, max_images: int = 4, size: str = "2K", re
         max_images: Maximum number of images to generate (1-4)
         size: Image size (1K, 2K, 4K)
         reference_image_url: Optional URL to a reference image for image-to-image generation
+        reference_images: Optional list of base64 encoded images for image-to-image generation
         session_id: Optional session identifier for tracking concurrent requests
     
     Returns:
@@ -109,9 +156,16 @@ async def generate_images(prompt: str, max_images: int = 4, size: str = "2K", re
         "watermark": False
     }
     
-    # Add reference image if provided
-    if reference_image_url and reference_image_url.strip():
-        data["image"] = reference_image_url.strip()
+    # Add reference image(s) if provided
+    # Priority: uploaded images > image URL
+    if reference_images and len(reference_images) > 0:
+        # For uploaded images, always send as list for API consistency
+        # bytedance-seedream-4.0 supports multiple images, bytedance-seededit-3.0-i2 supports single
+        data["image"] = reference_images  # Always as list for uploaded images
+        print(f"Added {len(reference_images)} uploaded image(s) as list to API request")
+    elif reference_image_url and reference_image_url.strip():
+        data["image"] = reference_image_url.strip()  # URL as string
+        print(f"Added image URL to API request: {reference_image_url[:50]}...")
     
     try:
         # Use aiohttp for async requests to support concurrent users
@@ -171,14 +225,28 @@ async def generate_image_endpoint(
     prompt: str = Form(...),
     max_images: int = Form(4),
     size: str = Form("2K"),
-    reference_image_url: str = Form("")
+    reference_image_url: str = Form(""),
+    uploaded_images: List[UploadFile] = File(default=[])
 ):
     """API endpoint to generate images with concurrent support"""
     try:
         # Generate unique session ID for this request
         session_id = str(uuid.uuid4())[:8]
         
-        result = await generate_images(prompt, max_images, size, reference_image_url, session_id)
+        # Process uploaded images
+        reference_images = []
+        for file in uploaded_images:
+            if file.filename:  # Only process files that were actually uploaded
+                if not validate_image_file(file):
+                    raise HTTPException(
+                        status_code=400, 
+                        detail=f"Invalid image file: {file.filename}. Supported formats: JPEG, PNG, WebP, GIF. Max size: 10MB."
+                    )
+                
+                base64_image = await convert_image_to_base64(file)
+                reference_images.append(base64_image)
+        
+        result = await generate_images(prompt, max_images, size, reference_image_url, reference_images, session_id)
         return {"success": True, "data": result, "session_id": session_id}
     except HTTPException as e:
         return {"success": False, "error": e.detail}
@@ -191,14 +259,28 @@ async def api_generate_image(
     prompt: str = Form(...),
     max_images: int = Form(4),
     size: str = Form("2K"),
-    reference_image_url: str = Form("")
+    reference_image_url: str = Form(""),
+    uploaded_images: List[UploadFile] = File(default=[])
 ):
     """JSON API endpoint for generating images with concurrent support"""
     try:
         # Generate unique session ID for this request
         session_id = str(uuid.uuid4())[:8]
         
-        result = await generate_images(prompt, max_images, size, reference_image_url, session_id)
+        # Process uploaded images
+        reference_images = []
+        for file in uploaded_images:
+            if file.filename:  # Only process files that were actually uploaded
+                if not validate_image_file(file):
+                    raise HTTPException(
+                        status_code=400, 
+                        detail=f"Invalid image file: {file.filename}. Supported formats: JPEG, PNG, WebP, GIF. Max size: 10MB."
+                    )
+                
+                base64_image = await convert_image_to_base64(file)
+                reference_images.append(base64_image)
+        
+        result = await generate_images(prompt, max_images, size, reference_image_url, reference_images, session_id)
         return result
     except HTTPException as e:
         raise e

@@ -61,17 +61,50 @@
                         </div>
 
                         <div class="form-section">
-                            <label for="reference_image_url" class="form-label">Reference Image <span class="optional">(Optional)</span></label>
-                            <input 
-                                type="url" 
-                                id="reference_image_url" 
-                                name="reference_image_url" 
-                                class="form-input"
-                                placeholder="https://example.com/image.jpg"
-                            />
-                            <div id="imagePreview" class="image-preview hidden">
-                                <img id="previewImg" src="" alt="Reference preview">
-                                <button type="button" id="removeImage" class="remove-btn">×</button>
+                            <label class="form-label">Reference Images <span class="optional">(Optional)</span></label>
+                            <div class="reference-input-tabs">
+                                <button type="button" class="tab-button active" data-tab="upload">Upload Images</button>
+                                <button type="button" class="tab-button" data-tab="url">Image URL</button>
+                            </div>
+                            
+                            <!-- Upload Tab -->
+                            <div id="uploadTab" class="reference-tab active">
+                                <div class="file-upload-area" id="fileUploadArea">
+                                    <div class="upload-content">
+                                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                            <polyline points="7,10 12,15 17,10"/>
+                                            <line x1="12" y1="15" x2="12" y2="3"/>
+                                        </svg>
+                                        <h3>Upload Reference Images</h3>
+                                        <p>Drag and drop multiple images here, or click to browse</p>
+                                        <p class="upload-hint">Supports JPEG, PNG, WebP, GIF • Max 10MB per image • Up to 5 images</p>
+                                    </div>
+                                    <input 
+                                        type="file" 
+                                        id="imageUpload" 
+                                        name="uploaded_images"
+                                        accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                                        multiple
+                                        class="file-input"
+                                    />
+                                </div>
+                                <div id="uploadedImagesPreview" class="uploaded-images-preview"></div>
+                            </div>
+                            
+                            <!-- URL Tab -->
+                            <div id="urlTab" class="reference-tab">
+                                <input 
+                                    type="url" 
+                                    id="reference_image_url" 
+                                    name="reference_image_url" 
+                                    class="form-input"
+                                    placeholder="https://example.com/image.jpg"
+                                />
+                                <div id="imagePreview" class="image-preview hidden">
+                                    <img id="previewImg" src="" alt="Reference preview">
+                                    <button type="button" id="removeImage" class="remove-btn">×</button>
+                                </div>
                             </div>
                         </div>
 
