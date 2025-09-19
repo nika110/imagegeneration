@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Storage for uploaded files
     let uploadedFiles = [];
+    let isProcessingFiles = false;
 
     // Image count guidance messages
     const hintMessages = {
@@ -436,6 +437,11 @@ document.addEventListener('DOMContentLoaded', function() {
         // Get form data
         const formData = new FormData(form);
         
+        // Add uploaded files manually to avoid file input conflicts
+        uploadedFiles.forEach(file => {
+            formData.append('uploaded_images', file);
+        });
+        
         // Override size parameter based on dimension method
         const method = dimensionMethod.value;
         if (method === 'custom') {
@@ -637,7 +643,20 @@ document.addEventListener('DOMContentLoaded', function() {
         fileUploadArea.addEventListener('dragover', handleDragOver);
         fileUploadArea.addEventListener('dragleave', handleDragLeave);
         fileUploadArea.addEventListener('drop', handleDrop);
-        fileUploadArea.addEventListener('click', () => imageUpload.click());
+        // Remove the click handler since file input is now directly clickable
+        // Just add a visual feedback handler
+        fileUploadArea.addEventListener('mouseenter', () => {
+            if (!isProcessingFiles && (fileUploadArea.style.display === '' || fileUploadArea.style.display === 'block')) {
+                fileUploadArea.style.transform = 'scale(1.02)';
+            }
+        });
+        
+        fileUploadArea.addEventListener('mouseleave', () => {
+            fileUploadArea.style.transform = '';
+        });
+        
+        // Initialize upload area visibility
+        updateUploadPreview();
     }
 
     function switchReferenceTab(tabName) {
@@ -660,8 +679,28 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function handleFileSelect(event) {
+        // Prevent processing if already in progress
+        if (isProcessingFiles) {
+            return;
+        }
+        
         const files = Array.from(event.target.files);
+        
+        // If no files selected, ignore
+        if (files.length === 0) {
+            return;
+        }
+        
+        // Set processing flag to prevent multiple selections
+        isProcessingFiles = true;
+        
         processFiles(files);
+        
+        // Clear the input for next selection
+        setTimeout(() => {
+            event.target.value = '';
+            isProcessingFiles = false;
+        }, 300);
     }
 
     function handleDragOver(event) {
@@ -709,17 +748,14 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        updateFileInput();
+        // Force immediate update
         updateUploadPreview();
+        updateFileInput();
     }
 
     function updateFileInput() {
-        // Create new DataTransfer to update the file input
-        const dt = new DataTransfer();
-        uploadedFiles.forEach(file => {
-            dt.items.add(file);
-        });
-        imageUpload.files = dt.files;
+        // Files are handled via uploadedFiles array in form submission
+        // This prevents conflicts with the file input element
     }
 
     function updateUploadPreview() {
@@ -769,7 +805,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     <span>Add More</span>
                 </div>
             `;
-            addMoreBtn.addEventListener('click', () => imageUpload.click());
+            addMoreBtn.addEventListener('click', () => {
+                if (!isProcessingFiles) {
+                    imageUpload.click();
+                }
+            });
             uploadedImagesPreview.appendChild(addMoreBtn);
         }
 
@@ -785,18 +825,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function removeUploadedImage(index) {
         uploadedFiles.splice(index, 1);
-        updateFileInput();
         updateUploadPreview();
         
-        // If no images left, clear localStorage
+        // If no images left, clear localStorage and reset file input
         if (uploadedFiles.length === 0) {
+            imageUpload.value = '';
             clearStoredSessions();
         }
     }
 
     function clearUploadedImages() {
         uploadedFiles = [];
-        updateFileInput();
+        isProcessingFiles = false; // Reset processing flag
+        // Clear the file input
+        imageUpload.value = '';
         updateUploadPreview();
         clearStoredSessions(); // Clear localStorage when clearing images
     }
@@ -805,7 +847,6 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             localStorage.removeItem(STORAGE_KEY);
             localStorage.removeItem('imageSessions'); // Clear old storage key too
-            console.log('Cleared stored image sessions');
         } catch (e) {
             console.warn('Failed to clear localStorage:', e);
         }

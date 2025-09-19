@@ -162,10 +162,8 @@ async def generate_images(prompt: str, max_images: int = 4, size: str = "2K", re
         # For uploaded images, always send as list for API consistency
         # bytedance-seedream-4.0 supports multiple images, bytedance-seededit-3.0-i2 supports single
         data["image"] = reference_images  # Always as list for uploaded images
-        print(f"Added {len(reference_images)} uploaded image(s) as list to API request")
     elif reference_image_url and reference_image_url.strip():
         data["image"] = reference_image_url.strip()  # URL as string
-        print(f"Added image URL to API request: {reference_image_url[:50]}...")
     
     try:
         # Use aiohttp for async requests to support concurrent users
