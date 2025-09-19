@@ -311,7 +311,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function deleteSession(sessionIndex) {
         const savedSessions = loadSavedSessions();
         savedSessions.splice(sessionIndex, 1);
-        localStorage.setItem('imageSessions', JSON.stringify(savedSessions));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(savedSessions));
         
         // Refresh the browser
         if (savedSessions.length > 0) {
@@ -328,7 +328,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function clearAllSessions() {
         if (confirm('Are you sure you want to clear all saved sessions?')) {
-            localStorage.removeItem('imageSessions');
+            clearStoredSessions(); // Use the proper clear function
             document.querySelector('.session-browser')?.remove();
             document.querySelector('.session-info')?.remove();
             document.querySelector('.image-grid').innerHTML = '';
@@ -827,10 +827,12 @@ document.addEventListener('DOMContentLoaded', function() {
         uploadedFiles.splice(index, 1);
         updateUploadPreview();
         
-        // If no images left, clear localStorage and reset file input
+        // Clear localStorage whenever images are modified
+        clearStoredSessions();
+        
+        // If no images left, reset file input
         if (uploadedFiles.length === 0) {
             imageUpload.value = '';
-            clearStoredSessions();
         }
     }
 
