@@ -515,6 +515,11 @@ body::before {
     100% { transform: rotate(360deg); }
 }
 
+@keyframes fadeOut {
+    0% { opacity: 1; transform: translateX(-50%) translateY(0); }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+}
+
 .loading-content h3 {
     font-size: var(--font-size-xl);
     font-weight: 600;
@@ -1292,5 +1297,43 @@ button:focus {
     
     .upload-preview-image {
         height: 100px;
+    }
+}
+
+/* Mobile-specific fixes to prevent shaking */
+@media (max-width: 768px) {
+    /* Prevent layout shifts during image loading */
+    .upload-preview-item {
+        min-height: 140px;
+        transition: none; /* Disable transitions on mobile to prevent shaking */
+    }
+    
+    .upload-preview-image {
+        height: 100px;
+        transition: none;
+    }
+    
+    /* Stabilize upload areas */
+    .uploaded-images-preview {
+        min-height: 50px;
+        will-change: auto; /* Optimize rendering */
+    }
+    
+    /* Reduce transforms that can cause shaking */
+    .remove-upload-btn:hover,
+    .add-more-images-btn:hover {
+        transform: none;
+    }
+    
+    /* Disable hardware acceleration that might cause issues on some mobile devices */
+    * {
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+    }
+    
+    /* Stabilize the main form during uploads */
+    .generation-form {
+        position: relative;
+        contain: layout style paint;
     }
 }

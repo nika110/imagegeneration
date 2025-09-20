@@ -49,6 +49,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // localStorage key for saved images
     const STORAGE_KEY = 'imageGen_savedResults';
     const MAX_STORED_SESSIONS = 5; // Keep last 5 generation sessions
+    
+    // Mobile detection
+    const isMobileDevice = () => {
+        return window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    };
 
     // Update navigation status
     function updateNavStatus(status, color = 'var(--success-500)') {
@@ -418,7 +423,15 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Show loading state and update nav
         showElement(loading);
-        updateNavStatus('Generating...', 'var(--warning-500)');
+        
+        // Show mobile-specific upload progress for multiple images
+        const isMobile = isMobileDevice();
+        const hasMultipleImages = uploadedFiles.length > 1;
+        if (isMobile && hasMultipleImages) {
+            updateNavStatus('Uploading images...', 'var(--warning-500)');
+        } else {
+            updateNavStatus('Generating...', 'var(--warning-500)');
+        }
         
         // Update button state
         generateBtn.disabled = true;
@@ -453,10 +466,21 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         try {
+            // Create AbortController for timeout handling
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minutes timeout
+            
             const response = await fetch('/generate', {
                 method: 'POST',
-                body: formData
+                body: formData,
+                signal: controller.signal
             });
+            
+            clearTimeout(timeoutId);
+            
+            if (!response.ok) {
+                throw new Error(`Server error: ${response.status} ${response.statusText}`);
+            }
             
             const data = await response.json();
             
@@ -466,7 +490,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 showError(data.error || 'An unknown error occurred');
             }
         } catch (err) {
-            showError('Network error: Unable to connect to the server');
+            if (err.name === 'AbortError') {
+                showError('Request timed out. Please check your connection and try with smaller images.');
+            } else if (err.message.includes('Server error')) {
+                showError(`Server error: ${err.message}. Please try again.`);
+            } else {
+                showError('Network error: Unable to connect to the server. Check your internet connection.');
+            }
             console.error('Error:', err);
         } finally {
             // Hide loading state and reset UI
@@ -538,6 +568,37 @@ document.addEventListener('DOMContentLoaded', function() {
         errorMessage.textContent = message;
         showElement(error);
         updateNavStatus('Error', 'var(--error-500)');
+    }
+
+    function showNotification(message, duration = 4000) {
+        const notification = document.createElement('div');
+        notification.className = 'notification';
+        notification.textContent = message;
+        notification.style.cssText = `
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--accent-500);
+            color: white;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            font-size: 0.875rem;
+            max-width: calc(100vw - 2rem);
+            text-align: center;
+            animation: slideDown 0.3s ease-out;
+        `;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.style.animation = 'fadeOut 0.3s ease-out';
+                setTimeout(() => notification.remove(), 300);
+            }
+        }, duration);
     }
 
     function showElement(element) {
@@ -721,10 +782,12 @@ document.addEventListener('DOMContentLoaded', function() {
         processFiles(files);
     }
 
-    function processFiles(files) {
+    async function processFiles(files) {
         const imageFiles = files.filter(file => file.type.startsWith('image/'));
         const maxFiles = 5;
         const maxSize = 10 * 1024 * 1024; // 10MB
+        const isMobile = isMobileDevice();
+        const mobileMaxSize = 5 * 1024 * 1024; // 5MB for mobile
 
         if (imageFiles.length === 0) {
             showError('Please select image files only.');
@@ -736,17 +799,37 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        const invalidFiles = imageFiles.filter(file => file.size > maxSize);
+        const sizeLimit = isMobile ? mobileMaxSize : maxSize;
+        const invalidFiles = imageFiles.filter(file => file.size > sizeLimit);
         if (invalidFiles.length > 0) {
-            showError(`Some files are too large. Maximum size is 10MB per image.`);
+            const sizeMB = Math.round(sizeLimit / (1024 * 1024));
+            let errorMsg = `Some files are too large. Maximum size is ${sizeMB}MB per image`;
+            if (isMobile) {
+                errorMsg += ' on mobile devices. Try using smaller images or taking photos at a lower resolution.';
+            } else {
+                errorMsg += '.';
+            }
+            showError(errorMsg);
             return;
         }
 
-        imageFiles.forEach(file => {
+        // Process files with compression for mobile
+        for (const file of imageFiles) {
             if (uploadedFiles.length < maxFiles) {
-                uploadedFiles.push(file);
+                let processedFile = file;
+                
+                // Compress images on mobile devices
+                if (isMobile && file.size > 2 * 1024 * 1024) { // Compress files > 2MB on mobile
+                    try {
+                        processedFile = await compressImage(file);
+                    } catch (error) {
+                        console.warn('Image compression failed, using original:', error);
+                    }
+                }
+                
+                uploadedFiles.push(processedFile);
             }
-        });
+        }
 
         // Force immediate update
         updateUploadPreview();
@@ -756,6 +839,58 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateFileInput() {
         // Files are handled via uploadedFiles array in form submission
         // This prevents conflicts with the file input element
+    }
+
+    // Image compression function for mobile devices
+    function compressImage(file, quality = 0.8, maxWidth = 1200, maxHeight = 1200) {
+        return new Promise((resolve, reject) => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            
+            img.onload = function() {
+                // Calculate new dimensions
+                let { width, height } = img;
+                
+                if (width > maxWidth || height > maxHeight) {
+                    const ratio = Math.min(maxWidth / width, maxHeight / height);
+                    width *= ratio;
+                    height *= ratio;
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                
+                // Draw and compress
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                canvas.toBlob((blob) => {
+                    if (blob) {
+                        // Create new File object with compressed data
+                        const compressedFile = new File([blob], file.name, {
+                            type: file.type,
+                            lastModified: Date.now()
+                        });
+                        
+                        const originalSizeKB = Math.round(file.size / 1024);
+                        const compressedSizeKB = Math.round(compressedFile.size / 1024);
+                        console.log(`Compressed ${file.name}: ${originalSizeKB}KB → ${compressedSizeKB}KB`);
+                        
+                        // Show compression notification for significant size reduction
+                        if (originalSizeKB > compressedSizeKB * 1.5) {
+                            showNotification(`📱 Optimized ${file.name} for mobile (${originalSizeKB}KB → ${compressedSizeKB}KB)`);
+                        }
+                        
+                        resolve(compressedFile);
+                    } else {
+                        reject(new Error('Compression failed'));
+                    }
+                }, file.type, quality);
+            };
+            
+            img.onerror = () => reject(new Error('Failed to load image'));
+            img.src = URL.createObjectURL(file);
+        });
     }
 
     function updateUploadPreview() {
